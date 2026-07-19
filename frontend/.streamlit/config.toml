@@ -1,0 +1,22 @@
+[theme]
+primaryColor = "#4F46E5"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F8FAFC"
+textColor = "#1E293B"
+font = "sans serif"
+
+[server]
+maxUploadSize = 10
+enableXsrfProtection = false
+enableCORS = false
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showSidebarNavigation = true
+toolbarMode = "minimal"
+
+SUPABASE_URL = "https://bokokujdiuhkrughnjwb.supabase.co/rest/v1/"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJva29rdWpkaXVoa3J1Z2huandiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMzM5NjksImV4cCI6MjA5OTgwOTk2OX0.ljfGFc1LgsVr8a9qEzAn_JoLjaJMmrOkg1EMdzOi3s8"
