@@ -5,7 +5,9 @@
 #
 # After installing, download the spaCy model & Playwright Chromium:
 #     python -m playwright install chromium
-#     python -m spacy download en_core_web_md
+#     python -m spacy download en_core_web_sm
+
+--extra-index-url https://download.pytorch.org/whl/cpu
 
 # ── Backend: web framework ──
 fastapi>=0.110
@@ -15,6 +17,7 @@ python-multipart>=0.0.9      # required by FastAPI for File/Form uploads
 python-dotenv>=1.0
 
 # ── Backend: NLP / ML ──
+torch
 spacy>=3.7,<4.0
 sentence-transformers>=2.5
 numpy>=1.26
@@ -38,3 +41,4 @@ PyJWT[crypto]>=2.8           # verifies Supabase access tokens (HS256)
 streamlit>=1.32
 requests>=2.31
 supabase>=2.4                # frontend auth client (email/password + OAuth)
+

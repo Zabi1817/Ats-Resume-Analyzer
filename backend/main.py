@@ -19,15 +19,26 @@ logger=logging.getLogger('ats_resume_scorer')
 async def lifespan(app:FastAPI):
     logger.info('Starting ATS Resume Analyzer API...')
 
-    logger.info(f'Loading spaCy NLP model: {SPACY_MODEL_PRIMARY}')
     import spacy
+    logger.info(f'Loading spaCy NLP model: {SPACY_MODEL_PRIMARY}')
     try:
         app.state.nlp = spacy.load(SPACY_MODEL_PRIMARY)
-        logger.info(f'Loaded {SPACY_MODEL_PRIMARY}')
-    except OSError:
-        logger.warning(f'{SPACY_MODEL_PRIMARY} not found — falling back to {SPACY_MODEL_SECONDARY}')
-        app.state.nlp = spacy.load(SPACY_MODEL_SECONDARY)
-        logger.info(f'Loaded {SPACY_MODEL_SECONDARY} (fallback)')
+        logger.info(f'Loaded primary spaCy model: {SPACY_MODEL_PRIMARY}')
+    except Exception as err:
+        logger.warning(f'Primary spaCy model {SPACY_MODEL_PRIMARY} unavailable ({err}) — trying secondary: {SPACY_MODEL_SECONDARY}')
+        try:
+            app.state.nlp = spacy.load(SPACY_MODEL_SECONDARY)
+            logger.info(f'Loaded secondary spaCy model: {SPACY_MODEL_SECONDARY}')
+        except Exception as err_sec:
+            logger.warning(f'Secondary spaCy model unavailable ({err_sec}) — attempting automatic download of en_core_web_sm')
+            try:
+                from spacy.cli import download
+                download('en_core_web_sm')
+                app.state.nlp = spacy.load('en_core_web_sm')
+                logger.info('Loaded en_core_web_sm after automatic download')
+            except Exception as dl_err:
+                logger.error(f'Automatic download failed ({dl_err}). Falling back to blank English spaCy pipeline.')
+                app.state.nlp = spacy.blank('en')
 
     logger.info(f'Loading SentenceTransformer: {SENTENCE_TRANSFORMER_MODEL}')
     from sentence_transformers import SentenceTransformer
@@ -75,10 +86,13 @@ async def root():
     }
 
 if __name__=='__main__':
+    import os
     import uvicorn
+    port = int(os.getenv("PORT", 8000))
     uvicorn.run(
         'backend.main:app',
         host    = '0.0.0.0',
-        port    = 8000,
+        port    = port,
         reload  = True,    # Auto-restart on code changes (dev only)
     )
+
