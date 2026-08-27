@@ -67,7 +67,8 @@ async def analyze_resume(
             job_description=job_description
         )
     except Exception as exc:
-        logger.error(f'Full analysis pipeline failed: {exc}')
+        import traceback
+        logger.error(f'Full analysis pipeline failed:\n{traceback.format_exc()}')
         raise HTTPException(status_code=500, detail=f'Analysis pipeline failed: {exc}')
 
     from backend.models.schemas import ComponentScores

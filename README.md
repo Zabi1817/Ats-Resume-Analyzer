@@ -16,7 +16,7 @@ A web app that scores how well a resume matches a job description and returns ac
 - **NLP:** spaCy (`en_core_web_md`), Sentence Transformers (`all-MiniLM-L6-v2`)
 - **LLM:** Groq API (Llama 3)
 - **Auth + Database:** Supabase (email/password and Google OAuth)
-- **PDF report export:** WeasyPrint + Jinja2
+- **PDF report export:** Playwright (Chromium) + Jinja2
 
 ## Project structure
 
@@ -24,10 +24,10 @@ A web app that scores how well a resume matches a job description and returns ac
 ATS_SCORER/
 ├── backend/              FastAPI app, NLP services, API routes
 ├── frontend/             Streamlit app, views, components
+├── templates/            HTML templates for report generation
 ├── jupyter notebooks/    Research and dataset prep (not used at runtime)
-├── ml model/             Exported ML artifacts
 ├── requirements.txt      Combined backend + frontend dependencies
-└── .env.example          Template for environment variables
+└── .env                  Environment variables configuration
 ```
 
 ## Setup
@@ -38,51 +38,38 @@ ATS_SCORER/
 git clone <repo-url>
 cd ATS_SCORER
 python -m venv venv
-source venv/bin/activate         # Windows: venv\Scripts\activate
+.\venv\Scripts\activate         # Linux/macOS: source venv/bin/activate
 ```
 
-### 2. Install dependencies
+### 2. Install dependencies & models
 
 ```bash
 pip install -r requirements.txt
+python -m playwright install chromium
 python -m spacy download en_core_web_md
-```
-
-WeasyPrint needs system libraries on Linux:
-
-```bash
-# Fedora
-sudo dnf install -y cairo pango gdk-pixbuf2 libffi
-
-# Debian / Ubuntu
-sudo apt install -y libcairo2 libpango-1.0-0 libpangoft2-1.0-0 libffi-dev
 ```
 
 ### 3. Configure environment variables
 
-Copy the template and fill in your keys:
+Ensure your `.env` file exists at project root containing Supabase & Groq API credentials:
 
-```bash
-cp .env.example .env
+```env
+SUPABASE_URL=...
+SUPABASE_KEY=...
+SUPABASE_ANON_KEY=...
+SUPABASE_JWT_SECRET=...
+GROQ_API_KEY=...
 ```
-
-You need:
-
-- A **Supabase** project — grab `SUPABASE_URL`, `SUPABASE_KEY` (service role), and `SUPABASE_ANON_KEY` from Project Settings → API.
-- A **Groq** API key from [console.groq.com](https://console.groq.com).
-- (Optional) Google OAuth set up in the Supabase dashboard if you want Google sign-in.
-
-The Streamlit frontend also reads Supabase config from `frontend/.streamlit/secrets.toml`. Copy `secrets.toml.example` to `secrets.toml` and fill it in.
 
 ### 4. Run the backend
 
 From the project root:
 
 ```bash
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn backend.main:app --reload
 ```
 
-The API is now at `http://localhost:8000`.
+The API will run at `http://localhost:8000`.
 
 ### 5. Run the frontend
 

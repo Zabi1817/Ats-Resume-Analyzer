@@ -145,9 +145,17 @@ with st.sidebar:
         st.markdown("<div style='text-align:center; margin: 8px 0; color:#94a3b8;'>or</div>",
                     unsafe_allow_html=True)
 
+        if st.button("⚡ Continue as Guest / Demo Mode", use_container_width=True):
+            result = supabase_client.demo_sign_in("guest@example.com")
+            st.session_state.access_token  = result["access_token"]
+            st.session_state.refresh_token = result["refresh_token"]
+            st.session_state.user_id       = result["user_id"]
+            st.session_state.user_email    = result["email"]
+            st.rerun()
+
         oauth = supabase_client.google_oauth_url()
         if "error" in oauth:
-            st.caption(f"Google sign-in unavailable: {oauth['error']}")
+            st.caption(f"Google sign-in status: {oauth['error']}")
         else:
             st.link_button(
                 "Continue with Google",

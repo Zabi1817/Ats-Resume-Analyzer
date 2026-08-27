@@ -5,21 +5,19 @@ from typing import Dict
 
 from groq import Groq
 
-logger=logging.getLogger('ats_resume_scorer')
+from backend.core.config import GROQ_MODEL as CONFIG_GROQ_MODEL
 
+logger = logging.getLogger('ats_resume_scorer')
 
-GROQ_MODEL='llama-3.3-70b-versatile'
+_client = None
 
-_client=None
-
-def _get_client()->Groq:
+def _get_client() -> Groq:
     global _client
     if _client is None:
-        api_key=os.getenv('GROQ_API_KEY')
-
+        api_key = os.getenv('GROQ_API_KEY')
         if not api_key:
             raise ValueError("GROQ_API_KEY environment variable not set")
-        _client=Groq(api_key=api_key)
+        _client = Groq(api_key=api_key)
     return _client
 
 RESUME_SYSTEM_PROMPT = (
@@ -75,19 +73,35 @@ Important instructions:
 Resume Text:
 {raw_text}"""
 
-def _call_groq(client:Groq, system_prompt:str, user_prompt:str)->str:
+def _call_groq(client: Groq, system_prompt: str, user_prompt: str) -> str:
+    # Build candidate model list starting with configured model
+    configured_model = os.getenv('GROQ_MODEL', CONFIG_GROQ_MODEL) or 'groq/compound'
+    fallback_models = ['groq/compound', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b']
+    
+    candidate_models = [configured_model]
+    for model in fallback_models:
+        if model not in candidate_models:
+            candidate_models.append(model)
 
-    response=client.chat.completions.create(
-        model=GROQ_MODEL, 
-        messages=[
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': user_prompt}
-        ],
-        temperature=0.0,
-        max_tokens=4096
-    )
+    last_error = None
+    for model in candidate_models:
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_prompt}
+                ],
+                temperature=0.0,
+                max_tokens=4096
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as err:
+            last_error = err
+            logger.warning(f"Groq API call with model '{model}' failed: {err}. Trying next candidate model...")
 
-    return response.choices[0].message.content.strip()
+    logger.error(f"All Groq model candidates failed. Last error: {last_error}")
+    raise ValueError(f"Groq LLM analysis unavailable. Cause: {last_error}")
 
 def _try_parse_json(text: str) -> dict | None:
 
@@ -108,16 +122,15 @@ def _try_parse_json(text: str) -> dict | None:
     except json.JSONDecodeError:
         return None
     
-def parse_resume(raw_text: str)->Dict:
+def parse_resume(raw_text: str) -> Dict:
 
-    client=_get_client()
-    prompt=RESUME_USER_PROMPT.format(raw_text=raw_text)
-    raw_response=_call_groq(client, RESUME_SYSTEM_PROMPT, prompt)
-    result=_try_parse_json(raw_response)
+    client = _get_client()
+    prompt = RESUME_USER_PROMPT.format(raw_text=raw_text)
+    raw_response = _call_groq(client, RESUME_SYSTEM_PROMPT, prompt)
+    result = _try_parse_json(raw_response)
 
-    if result is None:
+    if result is not None:
         return _validate_resume_result(result)
-    
 
     logger.warning("Groq resume parse: first attempt returned invalid JSON, retrying...")
     strict_prompt = (
@@ -133,6 +146,7 @@ def parse_resume(raw_text: str)->Dict:
     raise ValueError(
         f"Groq returned unparseable response after retry. Raw response:\n{raw_response[:500]}"
     )
+
     
 JD_SYSTEM_PROMPT = (
     "You are a job description parser. Extract information and "
