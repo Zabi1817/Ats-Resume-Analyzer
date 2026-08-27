@@ -13,43 +13,28 @@ from backend.core.config import(
 )
 from backend.api.routes import router
 
-logger=logging.getLogger('ats_resume_scorer')
+from backend.services.model_loader import (
+    get_nlp,
+    get_embedder,
+    is_nlp_loaded,
+    is_embedder_loaded,
+    preload_models_async,
+)
+
+logger = logging.getLogger('ats_resume_scorer')
 
 @asynccontextmanager
-async def lifespan(app:FastAPI):
+async def lifespan(app: FastAPI):
     logger.info('Starting ATS Resume Analyzer API...')
 
-    import spacy
-    logger.info(f'Loading spaCy NLP model: {SPACY_MODEL_PRIMARY}')
-    try:
-        app.state.nlp = spacy.load(SPACY_MODEL_PRIMARY)
-        logger.info(f'Loaded primary spaCy model: {SPACY_MODEL_PRIMARY}')
-    except Exception as err:
-        logger.warning(f'Primary spaCy model {SPACY_MODEL_PRIMARY} unavailable ({err}) — trying secondary: {SPACY_MODEL_SECONDARY}')
-        try:
-            app.state.nlp = spacy.load(SPACY_MODEL_SECONDARY)
-            logger.info(f'Loaded secondary spaCy model: {SPACY_MODEL_SECONDARY}')
-        except Exception as err_sec:
-            logger.warning(f'Secondary spaCy model unavailable ({err_sec}) — attempting automatic download of en_core_web_sm')
-            try:
-                from spacy.cli import download
-                download('en_core_web_sm')
-                app.state.nlp = spacy.load('en_core_web_sm')
-                logger.info('Loaded en_core_web_sm after automatic download')
-            except Exception as dl_err:
-                logger.error(f'Automatic download failed ({dl_err}). Falling back to blank English spaCy pipeline.')
-                app.state.nlp = spacy.blank('en')
+    # Trigger background model loading so Uvicorn binds to $PORT immediately without timing out
+    preload_models_async()
 
-    logger.info(f'Loading SentenceTransformer: {SENTENCE_TRANSFORMER_MODEL}')
-    from sentence_transformers import SentenceTransformer
-    app.state.embedder = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL)
-    logger.info(f'Loaded {SENTENCE_TRANSFORMER_MODEL}')
-
-    logger.info('All models loaded. API is ready to serve requests.')
+    logger.info('API process ready to accept port connections.')
 
     yield
 
-    logger.info('shutting down the api!!')
+    logger.info('Shutting down the API.')
 
 app=FastAPI(
     title=APP_TITLE, 

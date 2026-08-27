@@ -6,6 +6,12 @@ from starlette.concurrency import run_in_threadpool
 
 from backend.api.auth import get_current_user
 from backend.models.schemas import AnalysisResponse, ComponentScores, JDComparison, SkillValidationDetails
+from backend.services.model_loader import (
+    get_nlp,
+    get_embedder,
+    is_nlp_loaded,
+    is_embedder_loaded,
+)
 from backend.utils.file_utils import (
     get_default_grammar_results,
     get_default_location_results,
@@ -31,8 +37,15 @@ async def analyze_resume(
     warnings: List[str] = []
 
 
-    nlp      = request.app.state.nlp
-    embedder = request.app.state.embedder
+    try:
+        nlp = get_nlp()
+        embedder = get_embedder()
+    except Exception as exc:
+        logger.error(f'Model retrieval failed: {exc}')
+        raise HTTPException(
+            status_code=500,
+            detail=f'AI models are currently unavailable: {exc}',
+        )
 
 
     try:
@@ -126,11 +139,11 @@ async def analyze_resume(
 
 @router.get('/health')
 async def health_check(request: Request):
-    """Health check — confirms models are loaded and the API is ready."""
+    """Health check — confirms API is healthy and reports model load status."""
     return {
         'status':          'healthy',
-        'nlp_loaded':      request.app.state.nlp is not None,
-        'embedder_loaded': request.app.state.embedder is not None,
+        'nlp_loaded':      is_nlp_loaded(),
+        'embedder_loaded': is_embedder_loaded(),
     }
 
 @router.get('/history')
